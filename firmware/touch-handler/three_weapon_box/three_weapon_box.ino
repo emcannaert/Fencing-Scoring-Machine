@@ -59,6 +59,12 @@ const uint8_t modePin    =  2;        // Mode change button interrupt pin 0 (dig
 const uint8_t buzzerPin  =  3;        // buzzer pin
 const uint8_t modeLeds[] = {4, 5, 6}; // LED pins to indicate weapon mode selected {f e s}
 
+
+const uint8_t HITLEFT_SB  = 12; //  left touch flag for scoreboard module
+const uint8_t HITRIGHT_SB = 11; // right touch flag for scoreboard module
+const uint8_t OTLEFT_SB   = 10; // left off target flag for scoreboard module
+const uint8_t OTRIGHT_SB  = 9; // right off target flag for scoreboard module
+ 
 //=========================
 // values of analog reads
 //=========================
@@ -87,7 +93,7 @@ bool lockedOut    = false;
 // the minimum amount of time the tip needs to be depressed (in contact) for sabre 0.1ms -> 1ms
 // These values are stored as micro seconds for more accuracy
 //                         foil   epee   sabre
-const long lockout [] = {300000,  45000, 170000};  // the lockout time between hits
+const long lockout [] = {300000,  40000, 170000};  // the lockout time between hits
 const long depress [] = { 14000,   2000,   1000};  // the minimum amount of time the tip needs to be depressed
 
 //=================
@@ -193,19 +199,22 @@ void setup() {
   // turn on current mode light
   digitalWrite(modeLeds[currentMode],  HIGH);
   startloop = millis();
-  while ( millis() - startloop <= 5000) {
-    if (modeJustChangedFlag) {
-      if (currentMode == 2)
-        currentMode = 0;
-      else
-        currentMode++;
+  while ( millis() - startloop <= 5000) 
+  {
+
+    // search for changes in the blade mode
+    if (modeJustChangedFlag) 
+    {
+      if (currentMode == 2) currentMode = 0;
+      else currentMode++;
 
       setModeLeds();
       RGB_blue();
       startloop = millis();
 
       Serial.print("# Mode changed to: ");
-      switch (currentMode) {
+      switch (currentMode) 
+      {
         case 0:
           Serial.println("Foil");
           break;
@@ -219,10 +228,11 @@ void setup() {
       //     Serial.println(currentMode);
       modeJustChangedFlag = false;
       unsigned long currentMillis = millis();
-      while ((millis() - currentMillis) < 1000) { }  // short pause
+      while ((millis() - currentMillis) < 1000) { }  // 1s pause
     }
 
-    if (currentMode != startMode) {
+    if (currentMode != startMode) 
+    {
 
       // turn off mode lights
       digitalWrite(modeLeds[0],  LOW);
@@ -272,7 +282,8 @@ void setup() {
 //============
 // Main Loop
 //============
-void loop() {
+void loop() 
+{
   beep();
   // alisdair - moved down as testlights now flashes mode lights
   digitalWrite(modeLeds[currentMode], HIGH);
@@ -282,7 +293,8 @@ void loop() {
 
   // use a while as a main loop as the loop() has too much overhead for fast analogReads
   // we get a 3-4% speed up on the loop this way
-  while (1) {
+  while (1) 
+  {
     checkIfModeChanged();
     // read analog pins
     weaponA = analogRead(weaponPinA);
@@ -291,20 +303,25 @@ void loop() {
     lameA   = analogRead(lamePinA);
     lameB   = analogRead(lamePinB);
 
-    signalHits();
-    if      (currentMode == FOIL_MODE)
-      foil();
-    else if (currentMode == EPEE_MODE)
-      epee();
-    else if (currentMode == SABRE_MODE)
-      sabre();
+    signalHits(); // this has been updated for the following:
+    // if there has been a hit, send information to the scoreboard and do a short pause
+      // touch left
+      // touch right
+      // off target left
+      // off target right
+
+    if      (currentMode == FOIL_MODE)  foil();
+    else if (currentMode == EPEE_MODE)  epee();
+    else if (currentMode == SABRE_MODE) sabre();
 
 #ifdef TEST_ADC_SPEED
-    if (loopCount == 0) {
+    if (loopCount == 0) 
+    {
       now = micros();
     }
     loopCount++;
-    if ((micros() - now >= 1000000) && done == false) {
+    if ((micros() - now >= 1000000) && done == false) 
+    {
       Serial.print("# ");
       Serial.print(loopCount);
       Serial.println(" readings in 1 sec");
@@ -328,14 +345,22 @@ void changeMode() {
 //============================
 // Sets the correct mode led
 //============================
-void setModeLeds() {
-  if (currentMode == FOIL_MODE) {
+void setModeLeds() 
+{
+  if (currentMode == FOIL_MODE) 
+  {
     digitalWrite(onTargetA, HIGH);
-  } else {
-    if (currentMode == EPEE_MODE) {
+  } 
+  else 
+  {
+    if (currentMode == EPEE_MODE) 
+    {
       digitalWrite(onTargetB, HIGH);
-    } else {
-      if (currentMode == SABRE_MODE) {
+    } 
+    else 
+    {
+      if (currentMode == SABRE_MODE) 
+      {
         digitalWrite(onTargetA, HIGH);
         digitalWrite(onTargetB, HIGH);
       }
@@ -475,27 +500,38 @@ void foil() {
 //===================
 // Main epee method
 //===================
-void epee() {
+void epee() 
+{
   long now = micros();
-  if ((hitOnTargA && (depressAtime + lockout[1] < now)) || (hitOnTargB && (depressBtime + lockout[1] < now))) {
+  if ((hitOnTargA && (depressAtime + lockout[1] < now)) || (hitOnTargB && (depressBtime + lockout[1] < now))) 
+  {
     lockedOut = true;
   }
 
   // weapon A
   //  no hit for A yet    && weapon depress    && opponent lame touched
-  if (hitOnTargA == false) {
-    if (400 < weaponA && weaponA < 600 && 400 < lameA && lameA < 600) {
-      if (!depressedA) {
+  if (hitOnTargA == false) 
+  {
+    if (400 < weaponA && weaponA < 600 && 400 < lameA && lameA < 600) // are these ADCs?
+    {
+      if (!depressedA) 
+      {
         depressAtime = micros();
         depressedA   = true;
-      } else {
-        if (depressAtime + depress[1] <= micros()) {
+      } 
+      else 
+      {
+        if (depressAtime + depress[1] <= micros()) 
+        {
           hitOnTargA = true;
         }
       }
-    } else {
+    }
+    else 
+    {
       // reset these values if the depress time is short.
-      if (depressedA == true) {
+      if (depressedA == true) 
+      {
         depressAtime = 0;
         depressedA   = 0;
       }
@@ -504,19 +540,27 @@ void epee() {
 
   // weapon B
   //  no hit for B yet    && weapon depress    && opponent lame touched
-  if (hitOnTargB == false) {
-    if (400 < weaponB && weaponB < 600 && 400 < lameB && lameB < 600) {
-      if (!depressedB) {
+  if (hitOnTargB == false) 
+  {
+    if (400 < weaponB && weaponB < 600 && 400 < lameB && lameB < 600) 
+    {
+      if (!depressedB) 
+      {
         depressBtime = micros();
         depressedB   = true;
-      } else {
-        if (depressBtime + depress[1] <= micros()) {
+      } 
+      else {
+        if (depressBtime + depress[1] <= micros()) 
+        {
           hitOnTargB = true;
         }
       }
-    } else {
+    } 
+    else 
+    {
       // reset these values if the depress time is short.
-      if (depressedB == true) {
+      if (depressedB == true) 
+      {
         depressBtime = 0;
         depressedB   = 0;
       }
@@ -528,7 +572,8 @@ void epee() {
 //===================
 // Main sabre method
 //===================
-void sabre() {
+void sabre() 
+{
 
 
   long now = micros();
@@ -580,16 +625,31 @@ void sabre() {
 //==============
 // Signal Hits
 //==============
-void signalHits() {
+void signalHits() 
+{
   // non time critical, this is run after a hit has been detected
 
-  if (lockedOut) {
-    writeDisplay();
-    digitalWrite(onTargetA,  hitOnTargA);
-    digitalWrite(offTargetA, hitOffTargA);
-    digitalWrite(offTargetB, hitOffTargB);
-    digitalWrite(onTargetB,  hitOnTargB);
-    digitalWrite(buzzerPin,  HIGH);
+  if (lockedOut) 
+  {
+    // writeDisplay();
+
+    // this will be handled by scoreboard
+    // digitalWrite(onTargetA,  hitOnTargA);
+    // digitalWrite(offTargetA, hitOffTargA);
+    // digitalWrite(offTargetB, hitOffTargB);
+    // digitalWrite(onTargetB,  hitOnTargB);
+    // digitalWrite(buzzerPin,  HIGH);
+
+    // send information to the scoreboard
+
+    // fencer A = left fencer, fencer B = right fencer 
+
+    // digitalWrite(HITLEFT_SB,  hitOnTargA)  // touch for left fencer
+    // digitalWrite(HITRIGHT_SB, hitOnTargB) // touch for right fencer
+    // digitalWrite(OTLEFT_SB,   hitOffTargA)  // off target for right fencer
+    // digitalWrite(OTRIGHT_SB,  hitOffTargB)   // off target for left fencer
+
+
 
 #ifdef DEBUG
     /*   String serData = String("# hitOnTargA  : ") + hitOnTargA  + "\n"
@@ -727,31 +787,38 @@ void testLights() {
 
 }
 
-void buzz() {
+void buzz() 
+{
   tone(buzzerPin, 500, 100);
 }
-void beep() {
+void beep() 
+{
   tone(buzzerPin, 1000, 500);
 }
 
 // Alisdair: the following writes a two character code to the serial interface that is used by the wireless display
 //           It also light s the LED strips or panels if the yare attached.
 
-void writeDisplay() {
+void writeDisplay() 
+{
 
-  if ( hitOnTargA ) {
+  if ( hitOnTargA ) 
+  {
     Serial.println("GH");
     fill_solid( GreenFencerLEDs, NUM_LEDS_PER_STRIP, CRGB( 0, 200, 0));
   }
-  if ( hitOffTargA ) {
+  if ( hitOffTargA ) 
+  {
     Serial.println("GM");
     fill_solid( GreenFencerLEDs, NUM_LEDS_PER_STRIP, CRGB( 200, 200, 200));
   }
-  if ( hitOffTargB ) {
+  if ( hitOffTargB ) 
+  {
     Serial.println("RM");
     fill_solid( RedFencerLEDs,   NUM_LEDS_PER_STRIP, CRGB( 200, 200, 200));
   }
-  if ( hitOnTargB ) {
+  if ( hitOnTargB ) 
+  {
     Serial.println("RH");
     fill_solid( RedFencerLEDs,   NUM_LEDS_PER_STRIP, CRGB( 200, 0, 0));
   }
@@ -769,7 +836,8 @@ void writeDisplay() {
 
 
 
-void RGB_blank() {
+void RGB_blank() 
+{
 
   Serial.println("Clear LED strips");
 
@@ -778,7 +846,8 @@ void RGB_blank() {
   FastLED.show();
 }
 
-void RGB_blue() {
+void RGB_blue() 
+{
 
   Serial.println("Blue LED strips");
 
@@ -788,7 +857,8 @@ void RGB_blue() {
 }
 
 
-void kludge() {
+void kludge() 
+{
 
 //  fill_solid( RedFencerLEDs,   3, CRGB( 0, 0, 8));
 //  fill_solid( GreenFencerLEDs, 3, CRGB( 0, 0, 8));
