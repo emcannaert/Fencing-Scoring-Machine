@@ -335,10 +335,10 @@ void loop()
 //=====================
 // Mode pin interrupt
 //=====================
-void changeMode() {
+void changeMode() 
+{
   // set a flag to keep the time in the ISR to a min
   modeJustChangedFlag = true;
-
 }
 
 
@@ -378,8 +378,8 @@ void setModeLeds()
 
   buzz();
 
-  delay(500);
-  digitalWrite(onTargetA, LOW);
+  //delay(500);
+  digitalWrite(onTargetA, LOW); 
   digitalWrite(onTargetB, LOW);
   RGB_blank();
 }

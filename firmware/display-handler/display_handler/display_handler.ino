@@ -34,24 +34,24 @@
 /////////////
 
 constexpr uint8_t RIGHT_PRIORITY_PIN   = 34;
-constexpr uint8_t LEFT_PRIORITY_PIN    = 32;
+constexpr uint8_t LEFT_PRIORITY_PIN    = 35;
 
 constexpr uint8_t LEFT_CARD_R_PIN  = 2;
 constexpr uint8_t RIGHT_CARD_R_PIN = 3;
 constexpr uint8_t LEFT_CARD_Y_PIN  = 4;
 constexpr uint8_t RIGHT_CARD_Y_PIN = 5;
 constexpr uint8_t BUTTON_SOUND_PIN = 6;
-constexpr uint8_t PERIOD_pin = 7;
+//constexpr uint8_t PERIOD_pin = 7;
 constexpr uint8_t IR_RECEIVE_PIN = 52;
 
 constexpr uint8_t REST_TIME = 5;
-constexpr uint16_t BREAK_PAUSE = 4000;
+constexpr uint16_t BREAK_PAUSE   = 4000;
+constexpr uint16_t LIGHT_LENGTH  = 4000; 
 
 constexpr uint8_t HITLEFT_PIN  = 39;
 constexpr uint8_t HITRIGHT_PIN = 41;
 constexpr uint8_t OTLEFT_PIN   = 43;
 constexpr uint8_t OTRIGHT_PIN  = 45;
-
 
 
 
@@ -72,6 +72,9 @@ LedControl lc = LedControl(12, 11, 10, 4); // 4 modules
 LedControl ls = LedControl(40, 42, 44, 2); // 2 modules
 LedControl rs = LedControl(46, 48, 50, 2); // 2 modules
 
+LedControl period_disp = LedControl(7, 8, 9, 1); // 2 modules
+
+
 constexpr uint16_t ONE_SECOND_MILLIS     = 1000; 
 constexpr uint16_t SOUND_MILLIS          = 200; // 200 ms for beep sound to go off 
 constexpr uint16_t SOUND_MILLIS_LONG     = 2000; // 200 ms for beep sound to go off 
@@ -79,12 +82,14 @@ constexpr uint16_t MATCH_LENGTH          = 20;
 constexpr uint8_t  POSTTOUCHPAUSETIME    = 3000;
 
 
-unsigned long previousMillis_clock = 0;
-unsigned long previousMillis_sound = 0;
-unsigned long previousMillis_sound_long = 0;
+unsigned long previousMillis_clock       = 0;
+unsigned long previousMillis_sound       = 0;
+unsigned long previousMillis_sound_long  = 0;
 unsigned long previousMillis_break_pause = 0;
 unsigned long previousMillis_reset_score = 0;
 unsigned long previousMillis_reset_time  = 0;
+unsigned long lightLeftStartTime         = 0;
+unsigned long lightRightStartTime        = 0;
 unsigned long currentMillis              = 0;
 
 // Formatted time storage
@@ -133,6 +138,13 @@ struct State
   bool OTRight                = false; // off-target for right fencer was registered by touch handler
   bool doPostTouchPause       = false;
   float touch_time_millis     = 0;    // time at which touch occurred
+
+  bool light_left_matrix      = false;
+  bool light_right_matrix     = false;
+  bool light_left_matrix_OT   = false;
+  bool light_right_matrix_OT  = false;
+  bool lightLeftActive        = false;
+  bool lightRightActive       = false;
 };
 State STATE;  // Save initial values
 const State DEFAULT_STATE{};     // not necessary, but makes resetting simple
@@ -159,7 +171,7 @@ struct Score
 Score SCORE;
 const Score DEFAULT_SCORE{};
 
-bool period_lights_lit[]  = {false,false,false};
+//bool period_lights_lit[]  = {false,false,false}; // legacy way of doing periods
 
 
 // these are the patterns for each number (0-9) used to light up the dot matrices 
@@ -470,14 +482,26 @@ void doPeriodLightUpdate()
 {
   if(STATE.updatePeriodLight)
   { 
+
+
+    /* // legacy way of doing this
     for(int iii = 0; iii<3; iii++)
     {
       if( !period_lights_lit[iii] && (STATE.period == (iii+1))  )
       {
-        digitalWrite(PERIOD_pin + iii , HIGH);
+
+        period_disp
+        digitalWrite(PERIOD_pin + iii , HIGH); // legacy way of doing this
+
         period_lights_lit[iii] = true;
       }
+    } */
+
+    for(uint8_t row = 0; row<8; row++)
+    { 
+      period_disp.setRow(1, row,  pgm_read_byte(&numbers[STATE.period][row]));
     }
+
     STATE.updatePeriodLight = false; 
   }
 
@@ -624,24 +648,24 @@ void readIRRemote()
 }
 void checkTouches()
 {
-  touchLeft  = digitalRead(HITLEFT_PIN);
-  touchRight = digitalRead(HITRIGHT_PIN);
-  OTLeft     = digitalRead(OTLEFT_PIN);
-  OTRight    = digitalRead(OTRIGHT_PIN);
+  STATE.touchLeft  = digitalRead(HITLEFT_PIN);
+  STATE.touchRight = digitalRead(HITRIGHT_PIN);
+  STATE.OTLeft     = digitalRead(OTLEFT_PIN);
+  STATE.OTRight    = digitalRead(OTRIGHT_PIN);
 
   // DEBUG
-  if ((touchLeft && OTLeft ) || (touchRight && OTRight))    // should never be touch & white light from one side at the same time
+  if ((STATE.touchLeft && STATE.OTLeft ) || (STATE.touchRight && STATE.OTRight))    // should never be touch & white light from one side at the same time
     DEBUG_PRINT("ERROR: off-target and touch from the same side.");
 
 }
 void handleTouches()
 {
-  if( touchLeft + touchRight + OTLeft + OTRight  > 0 )
+  if( STATE.touchLeft + STATE.touchRight + STATE.OTLeft + STATE.OTRight  > 0 )
   {
     // pause the time 
     if(!STATE.paused) STATE.paused = true;
     STATE.playSoundLong = true;
-    if(touchLeft) 
+    if(STATE.touchLeft) 
     {
       STATE.score_left_changed =true;
       SCORE.current_score_left++; 
@@ -650,7 +674,7 @@ void handleTouches()
 
       // light up the left touch matrix
     }
-    if(touchRight) 
+    if(STATE.touchRight) 
     {
       STATE.score_right_changed= true;
       SCORE.current_score_right++; 
@@ -658,14 +682,14 @@ void handleTouches()
 
       // light up the right touch matrix
     }
-    if(OTLeft) 
+    if(STATE.OTLeft) 
     {
 
       STATE.light_left_matrix_OT = true;
 
       // light up the right off-target matrix
     }
-    if(OTRight) 
+    if(STATE.OTRight) 
     {
       STATE.light_right_matrix_OT = true;
       // light up the right off-target matrix
@@ -673,42 +697,78 @@ void handleTouches()
 
     STATE.doPostTouchPause = true; // pause for a couple seconds to be in sync with other controller
     STATE.touch_time_millis = currentMillis;
-    touchLeft   = false;
-    touchRight  = false;
-    OTLeft      = false;
-    OTRight     = false;
+    STATE.touchLeft   = false;
+    STATE.touchRight  = false;
+    STATE.OTLeft      = false;
+    STATE.OTRight     = false;
   }
 }
 
+ 
+void lightLeftTouchMatrix(char cmd)  // cmd should be 'R' or 'W'
+{
+  Serial1.write(cmd);  // example: this one lights red
+  lightLeftStartTime = millis();
+  STATE.lightLeftActive = true; 
+  return;
+}
+void lightRightTouchMatrix(char cmd)  // cmd should be 'G' or 'W'
+{
+  Serial2.write(cmd);  // example: this one lights red
+  lightRightStartTime = millis();
+  STATE.lightRightActive = true; 
+  return;
+}
 void lightTouchMatrices()
 {
 
-
-  if(STATE.light_left_matrix)
+  // if the left light should be lit and currently isn't, send the appropriate signal to left matrix
+  if (!STATE.lightLeftActive)
   {
-
-    STATE.light_left_matrix = false;
+    if(STATE.light_left_matrix) 
+    {
+      lightLeftTouchMatrix('R');
+      STATE.light_left_matrix = false;
+    }
+    else if(STATE.light_left_matrix_OT) 
+    {
+      lightLeftTouchMatrix('W');
+      STATE.light_left_matrix_OT = false;
+    }
   }
-
-  if(STATE.light_right_matrix)
+  else if(STATE.lightLeftActive) // if it IS activated, deactivate it after a set time
   {
-
-    STATE.light_right_matrix = false;
+    unsigned long now = millis();
+    if (now - lightLeftStartTime >= ON_DURATION) 
+    {
+      lightLeftTouchMatrix('O');
+      STATE.lightLeftActive = false;
+    }
   }
-
-  if(STATE.light_left_matrix_OT)
+  // if the right light should be lit and currently isn't, send signal to left matrix
+  if(!STATE.lightRightActive)
   {
-
-    STATE.light_left_matrix_OT = false;
+    if (STATE.light_right_matrix) 
+    {
+      lightRightTouchMatrix('G');
+      STATE.light_right_matrix = false;
+    }
+    else if (STATE.light_right_matrix_OT) 
+    {
+      lightRightTouchMatrix('W');
+      STATE.light_right_matrix_OT = false;
+    }
   }
-  if(STATE.light_right_matrix_OT)
+  else if(STATE.lightRightActive)
   {
-
-    STATE.light_right_matrix_OT = false;
+    unsigned long now = millis();
+    if (now - lightRightStartTime >= ON_DURATION) 
+    {
+      lightRightTouchMatrix('O');
+      STATE.lightRightActive = false;
+    }
   }
-
-
-
+  return;
 }
 
 
@@ -719,6 +779,8 @@ void setup() // commands to run once arduino is turned on
   randomSeed(analogRead(A7)); 
 
   Serial.begin(9600);
+  Serial1.begin(9600);
+  Serial2.begin(9600);
 
   // set all output pins
   IrReceiver.begin(IR_RECEIVE_PIN, ENABLE_LED_FEEDBACK);
@@ -729,9 +791,10 @@ void setup() // commands to run once arduino is turned on
   pinMode(LEFT_CARD_Y_PIN, OUTPUT);
   pinMode(RIGHT_CARD_Y_PIN, OUTPUT);
 
-  pinMode(PERIOD_pin, OUTPUT); // pin 8
-  pinMode(PERIOD_pin+1, OUTPUT); // pin 9
-  pinMode(PERIOD_pin+2, OUTPUT); // pin 10
+  
+  //pinMode(PERIOD_pin, OUTPUT); // pin 8
+  //pinMode(PERIOD_pin+1, OUTPUT); // pin 9
+  //pinMode(PERIOD_pin+2, OUTPUT); // pin 10
 
  
   pinMode(HITLEFT_PIN,  INPUT); // pin 39
@@ -739,7 +802,9 @@ void setup() // commands to run once arduino is turned on
   pinMode(OTLEFT_PIN,   INPUT); // pin 43
   pinMode(OTRIGHT_PIN,  INPUT); // pin 45
 
-  
+  // Turn both on momentarily 
+  Serial1.write('G');
+  Serial2.write('R');
 
   // reset the dot matrices
   for (int iii = 0; iii < 4; iii++) 
@@ -758,6 +823,11 @@ void setup() // commands to run once arduino is turned on
     rs.setIntensity(iii, 8);   // Brightness (0–15)
     rs.clearDisplay(iii);      // Clear
   }
+
+  // set up period matrix
+  period_disp.shutdown(0, false);   // Wake up
+  period_disp.setIntensity(0, 8);   // Brightness (0–15)
+  period_disp.clearDisplay(0);      // Clear
 
 
   // initialize the time and write it to the time display
@@ -779,6 +849,10 @@ void setup() // commands to run once arduino is turned on
   STATE.score_left_changed = true;
   STATE.score_right_changed = true;
   doScoreUpdate();
+
+  // turn off lights
+  Serial1.write('O');
+  Serial2.write('O');
 
 }
 
@@ -957,7 +1031,7 @@ void loop()
   // Update Score //
   //////////////////
 
-  doScoreUpdate()
+  doScoreUpdate();
 
   /////////////////////////
   // Do Post-touch Delay //
