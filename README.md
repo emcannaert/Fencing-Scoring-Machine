@@ -28,10 +28,14 @@ fencing-scoring-machine/
 │
 └── firmware/
     ├── touch-handler/
-    │   └── three_weapon_box.ino
-    │
+    │   └── three_weapon_box/
+    │       └── three_weapon_box.ino
+    ├── touch-matrix-handler/
+    │   └── touch_matrix_handler/
+    │        └── touch_matrix_handler.ino
     └── display-handler/
-        └── display_handler.ino
+        └── display_handler/
+            └── display_handler.ino
 ```
 
 ### **hardware/**
@@ -49,6 +53,9 @@ Contains the Arduino sketches and supporting code for the two main control modul
   Manages match time, score, penalty cards, and light/sound indicators.  
   Entirely original code, written for the Arduino Mega to take advantage of additional I/O pins and memory.
 
+- **`touch-matrix-handler/`**  
+  Firmware for lighting up colorduino-type matrices to display touch and off-target lights.
+
 ---
 
 ## ⚙️ Hardware Summary
@@ -57,6 +64,7 @@ Contains the Arduino sketches and supporting code for the two main control modul
 |------------|--------------|-----|
 | **Touch Handler** | Detects valid touches and differentiates between weapons. | Arduino **Uno** |
 | **Display Handler** | Drives LED matrices, buzzer, indicators, and manages logic. | Arduino **Mega** |
+| **Touch Matrix Handler** | Internal logic for the colorduino touch lights. | Colorduino Matrix (8x8) |
 | **Power** | Shared regulated 5 V supply; separate logic and LED lines for stability. | – |
 
 ---
@@ -69,8 +77,9 @@ git clone https://github.com/<your-username>/fencing-scoring-machine.git
 ```
 
 ### 2. Upload firmware
-- Open `firmware/touch-handler/touch-handler.ino` in the Arduino IDE and upload to **Arduino Uno**.  
-- Open `firmware/display-handler/display-handler.ino` and upload to **Arduino Mega**.
+- Open `firmware/touch-handler/three_weapon_box/three_weapon_box.ino` in the Arduino IDE and upload to **Arduino Uno**.  
+- Open `firmware/display-handler/display_handler/display_handler.ino` and upload to **Arduino Mega**.
+- Open `firmware/touch-matrix-handler/touch_matrix_handler/touch-matrix-handler.ino` and upload to both colorduino touch lights (requires FTDI adapter).
 
 ### 3. Assemble hardware
 Use the schematics in the `hardware/` directory to wire the modules.  
@@ -86,6 +95,7 @@ When powered, the system initializes the display, waits for valid weapon connect
 - [Arduino IDE](https://www.arduino.cc/en/software)
 - [LedControl library](https://github.com/wayoda/LedControl)
 - [three_weapon_box library](https://github.com/dkroeske/three_weapon_box) (included or referenced)
+- [Adafruit NeoPixel library](https://github.com/adafruit/Adafruit_NeoPixel)
 - Standard electronic components (MAX7219, LEDs, buzzers, etc.)
 
 ---
@@ -99,4 +109,4 @@ The `touch-handler` code includes or references portions from the [`three_weapon
 
 ## 🙌 Acknowledgments
 
-- **three_weapon_box** — for the foundational touch detection logic.  
+- **three_weapon_box** — for some of the foundational touch detection logic.  
